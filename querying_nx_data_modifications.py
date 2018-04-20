@@ -246,13 +246,13 @@ try:
         dfRes = dfRes.append(dfRow, ignore_index=True)
 except:
     dfRes.to_csv(savestr)
-    print('saved')
+    print('saved in except')
 print('queries done')
 
 
 # In[8]:
 
 
-# dfRes.to_csv(savestr)
-# print('saved')
+dfRes.to_csv(savestr)
+print('saved no error')
 
