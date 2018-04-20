@@ -217,7 +217,7 @@ print(all_edges_to_sample[0])
 
 #space out requests more - want to write a cron script eventually for maybe ~6-8 requests per hour as opposed
 #to 100 per day which means 33 edges per day
-#import time
+import time
 #time.sleep(1)
 
 
@@ -231,7 +231,7 @@ savestr = './data/codonor_network_queries_instance_' + str(instanceNum) + '_5.20
 #'''
 try:
     for edge in all_edges_to_sample:
-        #time.sleep(1)
+        time.sleep(1)
         print(counter)
         counter = counter + 1
         name1 = '"' + edge[0] + '"'
