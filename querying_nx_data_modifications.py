@@ -186,9 +186,9 @@ print("method processed")
 
 
 #Figure out which edges to sample
-instanceNum = 1#same thing as like a machineNum
+instanceNum = 2#same thing as like a machineNum
 print("instanceNum: " + str(instanceNum))
-start = 120
+start = 160
 end = start+40
 print("start index: " + str(start))
 print("end index: " + str(end))
