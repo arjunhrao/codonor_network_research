@@ -1,7 +1,7 @@
 
 # coding: utf-8
 
-# In[2]:
+# In[49]:
 
 
 #read graph as edge list
@@ -10,33 +10,16 @@ import networkx as nx
 import pandas as pd
 
 #codonor graph - nodes are recipients. Edges are number of donors in common.
-H1 = nx.read_edgelist('co_donor_test.txt',nodetype=str,delimiter='\t!\t')#data=(('number_of_codonors',int)))
+H1 = nx.read_edgelist('co_donor_relabeled_nodes.txt',nodetype=str,delimiter='\t!\t')#data=(('number_of_codonors',int)))
 
 print(nx.number_of_nodes(H1) )#should be 212
 print( nx.number_of_edges(H1) )#should be 22366
 print(nx.density(H1) )
 
-#We want to relabel the nodes, replacing "LastName, FirstName MiddleName MiddleName2" with "FirstName LastName"
-def mapping(full_name):
-    name = [x for x in full_name.split(',')]
-    #name must be of length two.
-    #The first 'name' is the lastname
-    lastName = name[0]
-    #rest of name is second part of 'name'. The firstName is that part split by spaces to get the first word
-    #note there is a preceding space
-    firstName = name[1].split(' ')[1]
-    #godammit there's someone named W Todd Akin
-    if (len(firstName) == 1 and len(name[1].split(' ')) > 2):#if we have 2+ names in the firstName middleName etc
-        firstName = name[1].split(' ')[2]
-    return firstName + " " + lastName
-
-H1=nx.relabel_nodes(H1,mapping)
-print(H1.nodes())#Nodes change confirmed
-#print(H1.edges())#Edges change too.
+print(H1.nodes()) #[0])
 
 
-
-# In[3]:
+# In[50]:
 
 
 #get a list of the number of codonors
@@ -51,48 +34,14 @@ for e in H1.edges(data=True):
 list_of_edges = []
 for e in H1.edges(data=True):
     list_of_edges.append(e)
-list_of_edges = sorted(H1.edges(data=True), key=lambda tup: tup[2]['number_of_codonors'])#sort by number of codonors
+list_of_edges = sorted(H1.edges(data=True), key=lambda tup: (tup[2]['number_of_codonors'],tup[1]) )#sort by number of codonors
+#should sort by the name of first node of edge one after this for consistency.
+
+
 #print(list_of_edges)
 
 
-# #want to plot distribution of num_codonors, each element of which is a value in the affinity matrix
-# import numpy as np
-# import matplotlib.pyplot as plt
-# import numpy as np
-# 
-# h = sorted(num_codonors_list)
-# #Bunch of 0's for initial ones. The last sorted values are:
-# #..., 12946, 13815, 14003, 14022, 14520, 15825, 17183, 18845, 21054, 21388, 22655, 29957, 40203]
-# 
-# #https://stackoverflow.com/questions/34291260/how-can-i-plot-multiple-figure-in-the-same-line-with-matplotlib
-# #https://stackoverflow.com/questions/16392921/make-more-than-one-chart-in-same-ipython-notebook-cell
-# #https://matplotlib.org/gallery/subplots_axes_and_figures/multiple_figs_demo.html
-# 
-# data = sorted(num_codonors_list)
-# counts, bins, bars = plt.hist(data, bins=20)
-# print(counts)
-# plt.show()
-# 
-# 
-# 
-# #plt.figure(1)
-# #plt.subplot(211)
-# bins = 2**(np.arange(0,10))
-# #plt.xscale('log')
-# counts, bins, bars = plt.hist(data,bins=bins)
-# print(counts)
-# plt.show()
-# 
-# #plt.subplot(212)
-# bins = 2**(np.arange(0,10))
-# plt.xscale('log')
-# counts, bins, bars = plt.hist(data,bins=bins)
-# print(counts)
-# plt.show()
-# 
-# print(list_of_edges[-1])
-
-# In[4]:
+# In[51]:
 
 
 num_edges = len(list_of_edges)
@@ -124,7 +73,18 @@ print(len(low_bkt))
 
 # I'm just going to do the entire high bucket as opposed to sampling from the lower ones because in the past the lower ones have led to poor results - at least in Google CSE, the values were often 0, which is undesirable. Doing the entire bucket as opposed to randomly sampling also allows me to not to overlap the edges I query on Google. I can always randomly sample from the bucket afterwards.
 
-# In[5]:
+# In[52]:
+
+
+import pickle
+#get dictionary. Implement logic behind checking and saving within scraping function
+#https://stackoverflow.com/questions/11218477/how-can-i-use-pickle-to-save-a-dict
+names_to_results_dict = {}
+with open('names_to_results_dict.pickle', 'rb') as handle:
+    names_to_results_dict = pickle.load(handle)
+
+
+# In[53]:
 
 
 
@@ -135,25 +95,49 @@ from bs4 import BeautifulSoup
 #had to write a scraping method to work for me until I figure out why I can't find the server...
 def jaccard_google_search_scrape(search_term1, search_term2, api_key, cse_id, **kwargs):
 
-    r = requests.get("https://www.google.com/search", params={'q':search_term1})
-
-    soup = BeautifulSoup(r.text, "lxml")
-    res = soup.find("div", {"id": "resultStats"})
     num1 = -2
-    if (res.text.replace(",", "").split()[0].strip() == "About"):
-        num1 = int(res.text.replace(",", "").split()[1].strip() )
-    else:
-        num1 = int(res.text.replace(",", "").split()[0].strip() )
-
-    r = requests.get("https://www.google.com/search", params={'q':search_term2})
-
-    soup = BeautifulSoup(r.text, "lxml")
-    res = soup.find("div", {"id": "resultStats"})
     num2 = -2
-    if (res.text.replace(",", "").split()[0].strip() == "About"):
-        num2 = int(res.text.replace(",", "").split()[1].strip() )
+    #only scrape if it's not in the dict
+    if (names_to_results_dict.get(search_term1[1:-1]) is None):
+        r = requests.get("https://www.google.com/search", params={'q':search_term1})
+
+        soup = BeautifulSoup(r.text, "lxml")
+        res = soup.find("div", {"id": "resultStats"})
+        if (res.text.replace(",", "").split()[0].strip() == "About"):
+            num1 = int(res.text.replace(",", "").split()[1].strip() )
+        else:
+            num1 = int(res.text.replace(",", "").split()[0].strip() )
+        #save this resulting value for the search term to the dict
+        names_to_results_dict[search_term1[1:-1]] = num1
+        #save pickle
+        with open('names_to_results_dict.pickle', 'wb') as handle:
+            pickle.dump(names_to_results_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            print("added to dict, saved term1")
     else:
-        num2 = int(res.text.replace(",", "").split()[0].strip() )
+        num1 = names_to_results_dict[search_term1[1:-1]]
+
+    if (names_to_results_dict.get(search_term2[1:-1]) is None):
+        r = requests.get("https://www.google.com/search", params={'q':search_term2})
+
+        soup = BeautifulSoup(r.text, "lxml")
+        res = soup.find("div", {"id": "resultStats"})
+
+        if (res.text.replace(",", "").split()[0].strip() == "About"):
+            num2 = int(res.text.replace(",", "").split()[1].strip() )
+        else:
+            num2 = int(res.text.replace(",", "").split()[0].strip() )
+        #save this resulting value for the search term to the dict
+        names_to_results_dict[search_term2[1:-1]] = num2
+        #save pickle
+        with open('names_to_results_dict.pickle', 'wb') as handle:
+            pickle.dump(names_to_results_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            print("added to dict, saved term2")
+    else:
+        num2 = names_to_results_dict[search_term2[1:-1]]
+        
+    #the dict will keep updating as necessary during a set of queries, but must make sure to store before exiting
+    #in order to maintain the values we added. Since this exit could happen at any query, may as well save pickle every
+    #time we add to the dict.
     
     strBoth = search_term1 + ' ' + search_term2#I think this should be fine. There's so much noise anyways,
     #and sometimes it increases the number of results, sometimes decreases, so using AND isn't better.
@@ -198,21 +182,25 @@ def jaccard_google_search_scrape(search_term1, search_term2, api_key, cse_id, **
 print("method processed")
 
 
-# In[6]:
+# In[54]:
 
 
 #Figure out which edges to sample
-instanceNum = 2#same thing as like a machineNum
-start = 61
-end = 61+40
+instanceNum = 1#same thing as like a machineNum
+print("instanceNum: " + str(instanceNum))
+start = 120
+end = start+40
+print("start index: " + str(start))
+print("end index: " + str(end))
 #start = instanceNum*33
 #end = start + 33#we can technically do 33 edges safely
 #Note that if instanceNum were 1, we'd have [33:66].
 all_edges_to_sample = high_bkt[start:end]#partition based on machine number
+print("first edge to sample:")
 print(all_edges_to_sample[0])
 
 
-# In[7]:
+# In[55]:
 
 
 #space out requests more - want to write a cron script eventually for maybe ~6-8 requests per hour as opposed
@@ -223,11 +211,12 @@ import time
 
 #choose the first of the following two lines if it's the very start / origination of the file. Otherwise go with second
 #don't forget to save csv at the end
-dfRes = pd.DataFrame(columns = ["str1", "str2", "num_codonors", "num1", "num2", "numCommon", "jacInd", "divMin", "divProd"])
-#dfRes = pd.read_csv('./co_donor_google_queries_fin_6.csv')
+#dfRes = pd.DataFrame(columns = ["str1", "str2", "num_codonors", "num1", "num2", "numCommon", "jacInd", "divMin", "divProd"])
+dfRes = pd.read_csv('./data/codonor_network_queries_instance_0_5.21_highbkt_edges.csv',index_col=0)
+#^index_col: https://stackoverflow.com/questions/36519086/pandas-how-to-get-rid-of-unnamed-column-in-a-dataframe
 
 counter = start
-savestr = './data/codonor_network_queries_instance_' + str(instanceNum) + '_5.20_highbkt_edges_' + str(start) + '_to_' + str(end-1) + '.csv'
+savestr = './data/codonor_network_queries_instance_0_5.21_highbkt_edges.csv'
 #'''
 try:
     for edge in all_edges_to_sample:
@@ -240,19 +229,29 @@ try:
         my_api_key, my_cse_id = "0", "0"
         res = jaccard_google_search_scrape(name1, name2, my_api_key, my_cse_id, num=1)
         #   retList = [num1, num2, numCommon, jacInd, divMin, divProd]
-        dfRow = pd.DataFrame([[edge[0], edge[1], (edge[2])['number_of_codonors'], res[0], res[1], res[2], res[3], res[4], res[5]]], 
-                           columns = ["str1", "str2", "num_codonors", "num1", "num2", "numCommon", "jacInd", "divMin", "divProd"])
-
+        dfRow = pd.DataFrame([[edge[0], edge[1], (edge[2])['number_of_codonors'], res[0], res[1], res[2], res[3], res[4], res[5], instanceNum]], 
+                           columns = ["str1", "str2", "num_codonors", "num1", "num2", "numCommon", "jacInd", "divMin", "divProd", "instanceNum"])
+        #print(dfRow)
+        #print(dfRes.head(n=1))
+        #print(dfRes.tail(n=1))
         dfRes = dfRes.append(dfRow, ignore_index=True)
 except:
-    dfRes.to_csv(savestr)
+    dfRes.to_csv(savestr)#note - this is cumulative for now, not just the date I'm giving in the name
     print('saved in except')
 print('queries done')
 
 
-# In[8]:
+# In[57]:
 
 
+print("len of ending names_to_results_dict: ")
+print(len(names_to_results_dict))
 dfRes.to_csv(savestr)
 print('saved no error')
+
+
+# In[ ]:
+
+
+
 
