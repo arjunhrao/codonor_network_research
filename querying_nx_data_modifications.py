@@ -1,7 +1,7 @@
 
 # coding: utf-8
 
-# In[49]:
+# In[9]:
 
 
 #read graph as edge list
@@ -19,7 +19,7 @@ print(nx.density(H1) )
 print(H1.nodes()) #[0])
 
 
-# In[50]:
+# In[10]:
 
 
 #get a list of the number of codonors
@@ -41,7 +41,7 @@ list_of_edges = sorted(H1.edges(data=True), key=lambda tup: (tup[2]['number_of_c
 #print(list_of_edges)
 
 
-# In[51]:
+# In[11]:
 
 
 num_edges = len(list_of_edges)
@@ -73,7 +73,7 @@ print(len(low_bkt))
 
 # I'm just going to do the entire high bucket as opposed to sampling from the lower ones because in the past the lower ones have led to poor results - at least in Google CSE, the values were often 0, which is undesirable. Doing the entire bucket as opposed to randomly sampling also allows me to not to overlap the edges I query on Google. I can always randomly sample from the bucket afterwards.
 
-# In[52]:
+# In[12]:
 
 
 import pickle
@@ -84,7 +84,7 @@ with open('names_to_results_dict.pickle', 'rb') as handle:
     names_to_results_dict = pickle.load(handle)
 
 
-# In[53]:
+# In[13]:
 
 
 
@@ -182,14 +182,14 @@ def jaccard_google_search_scrape(search_term1, search_term2, api_key, cse_id, **
 print("method processed")
 
 
-# In[54]:
+# In[14]:
 
 
 #Figure out which edges to sample
-instanceNum = 6#same thing as like a machineNum
+instanceNum = 1#same thing as like a machineNum
 print("instanceNum: " + str(instanceNum))
-start = 420
-end = start+90
+start = 900
+end = start+100
 print("start index: " + str(start))
 print("end index: " + str(end))
 #start = instanceNum*33
@@ -200,7 +200,7 @@ print("first edge to sample:")
 print(all_edges_to_sample[0])
 
 
-# In[55]:
+# In[15]:
 
 
 #space out requests more - want to write a cron script eventually for maybe ~6-8 requests per hour as opposed
@@ -238,10 +238,11 @@ try:
 except:
     dfRes.to_csv(savestr)#note - this is cumulative for now, not just the date I'm giving in the name
     print('saved in except')
+    #I'd like to be able to print out the exception but the block stopped working when I did that.
 print('queries done')
 
 
-# In[57]:
+# In[16]:
 
 
 print("len of ending names_to_results_dict: ")
